@@ -1,0 +1,161 @@
+# Continuous Integration: runs on every push to master and on every pull request.
+# Build -> unit + BDD tests with coverage gate -> dependency scan -> static analysis (CodeQL, SonarCloud)
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_VERSION: '9.0.x'
+  COVERAGE_THRESHOLD: 80
+
+jobs:
+  build-and-test:
+    name: Build and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Unit tests
+        run: >
+          dotnet test BPCalculator.Tests --configuration Release --no-build
+          --settings coverlet.runsettings --collect:"XPlat Code Coverage"
+          --logger trx --results-directory TestResults/unit
+
+      - name: BDD tests
+        run: >
+          dotnet test BPCalculator.BDD --configuration Release --no-build
+          --logger trx --results-directory TestResults/bdd
+
+      - name: Coverage report
+        uses: danielpalme/ReportGenerator-GitHub-Action@d3ebf1f760f7d8ab92cc44d9bcfee7ad73722a31 # v5.5.11
+        with:
+          reports: TestResults/unit/**/coverage.cobertura.xml
+          targetdir: coverage
+          reporttypes: HtmlInline;Cobertura;MarkdownSummaryGithub
+
+      - name: Add coverage to job summary
+        run: cat coverage/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Enforce coverage threshold
+        run: |
+          rate=$(grep -o 'line-rate="[0-9.]*"' coverage/Cobertura.xml | head -1 | grep -o '[0-9.]*')
+          percent=$(awk "BEGIN { printf \"%.1f\", $rate * 100 }")
+          echo "Line coverage: ${percent}% (threshold ${COVERAGE_THRESHOLD}%)"
+          awk "BEGIN { exit !($percent >= $COVERAGE_THRESHOLD) }" || { echo "::error::Line coverage ${percent}% is below ${COVERAGE_THRESHOLD}%"; exit 1; }
+
+      - name: Upload test results and coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            TestResults
+            coverage
+
+  dependency-scan:
+    name: Dependency vulnerability scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Check NuGet packages for known vulnerabilities
+        run: |
+          dotnet restore
+          dotnet list package --vulnerable --include-transitive 2>&1 | tee vulnerable.txt
+          if grep -q -i "has the following vulnerable packages" vulnerable.txt; then
+            echo "::error::Vulnerable NuGet packages found"
+            exit 1
+          fi
+
+  dependency-review:
+    name: Dependency review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+
+  codeql:
+    name: CodeQL security analysis
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: csharp
+          build-mode: manual
+          queries: security-and-quality
+
+      # only the application is built here, so CodeQL scans app code rather than
+      # test projects and the code Reqnroll generates from feature files
+      - name: Build application
+        run: dotnet build BPCalculator/BPCalculator.csproj --configuration Release
+
+      - uses: github/codeql-action/analyze@v3
+
+  sonarcloud:
+    name: SonarCloud code analysis
+    runs-on: ubuntu-latest
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history gives SonarCloud accurate blame data
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Skip when SonarCloud is not configured
+        if: env.SONAR_TOKEN == ''
+        run: echo "::warning::SONAR_TOKEN secret not set, skipping SonarCloud analysis"
+
+      - name: Analyse with SonarCloud
+        if: env.SONAR_TOKEN != ''
+        run: |
+          dotnet tool install --global dotnet-sonarscanner
+          dotnet sonarscanner begin \
+            /k:"Hagaird_bp" /o:"hagaird" \
+            /d:sonar.host.url="https://sonarcloud.io" \
+            /d:sonar.token="$SONAR_TOKEN" \
+            /d:sonar.cs.opencover.reportsPaths="TestResults/**/coverage.opencover.xml" \
+            /d:sonar.exclusions="**/wwwroot/lib/**" \
+            /d:sonar.coverage.exclusions="**/Program.cs,**/Startup.cs,**/*.cshtml,BPCalculator.Tests/**,BPCalculator.BDD/**"
+          dotnet build --configuration Release
+          dotnet test BPCalculator.Tests --configuration Release --no-build \
+            --settings coverlet.runsettings --collect:"XPlat Code Coverage" --results-directory TestResults
+          dotnet sonarscanner end /d:sonar.token="$SONAR_TOKEN"

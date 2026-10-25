@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BPCalculator", "BPCalculato
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BPCalculator.Tests", "BPCalculator.Tests\BPCalculator.Tests.csproj", "{D1A55B39-4F23-4221-871E-1794390C75DD}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BPCalculator.BDD", "BPCalculator.BDD\BPCalculator.BDD.csproj", "{13F7C962-26EC-41C5-A902-9204F6370853}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -41,6 +43,18 @@ Global
 		{D1A55B39-4F23-4221-871E-1794390C75DD}.Release|x64.Build.0 = Release|Any CPU
 		{D1A55B39-4F23-4221-871E-1794390C75DD}.Release|x86.ActiveCfg = Release|Any CPU
 		{D1A55B39-4F23-4221-871E-1794390C75DD}.Release|x86.Build.0 = Release|Any CPU
+		{13F7C962-26EC-41C5-A902-9204F6370853}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{13F7C962-26EC-41C5-A902-9204F6370853}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{13F7C962-26EC-41C5-A902-9204F6370853}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{13F7C962-26EC-41C5-A902-9204F6370853}.Debug|x64.Build.0 = Debug|Any CPU
+		{13F7C962-26EC-41C5-A902-9204F6370853}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{13F7C962-26EC-41C5-A902-9204F6370853}.Debug|x86.Build.0 = Debug|Any CPU
+		{13F7C962-26EC-41C5-A902-9204F6370853}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{13F7C962-26EC-41C5-A902-9204F6370853}.Release|Any CPU.Build.0 = Release|Any CPU
+		{13F7C962-26EC-41C5-A902-9204F6370853}.Release|x64.ActiveCfg = Release|Any CPU
+		{13F7C962-26EC-41C5-A902-9204F6370853}.Release|x64.Build.0 = Release|Any CPU
+		{13F7C962-26EC-41C5-A902-9204F6370853}.Release|x86.ActiveCfg = Release|Any CPU
+		{13F7C962-26EC-41C5-A902-9204F6370853}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
