@@ -116,10 +116,13 @@ jobs:
       - uses: github/codeql-action/init@v3
         with:
           languages: csharp
+          build-mode: manual
           queries: security-and-quality
 
-      - name: Build
-        run: dotnet build --configuration Release
+      # only the application is built here, so CodeQL scans app code rather than
+      # test projects and the code Reqnroll generates from feature files
+      - name: Build application
+        run: dotnet build BPCalculator/BPCalculator.csproj --configuration Release
 
       - uses: github/codeql-action/analyze@v3
 
